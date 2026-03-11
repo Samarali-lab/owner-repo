@@ -299,8 +299,8 @@ py -3.11 webcam.py
 ## 👩‍💻 Author
 
 **Samar Ali**
-- 📧 fd25502005@nutech.edu.pk
-- 🏫 NUTECH University, Tashkent
+- 📧 fd25502005@nutech.edu.pk / samaraliuae5@gmail.com 
+- 🏫 NUTECH University, Islamabad
 - 🏆 Future of Engineers Festival 2026
 
 ---
