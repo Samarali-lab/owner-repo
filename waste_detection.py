@@ -2,6 +2,7 @@
 # AI & Big Data Powered Smart Waste Monitoring System
 # Prototype for: Future of Engineers Festival - Tashkent, Uzbekistan
 # Description: CNN-based image classifier to detect Waste vs Clean streets
+# Compatible with: Python 3.10, 3.11, 3.12, 3.13 + TensorFlow 2.13+
 # ============================================================
 
 import os
@@ -11,18 +12,17 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from tensorflow.keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
-IMG_SIZE = 224          # Resize all images to 224x224
-BATCH_SIZE = 32
-EPOCHS = 10
+IMG_SIZE    = 224          # Resize all images to 224x224
+BATCH_SIZE  = 32
+EPOCHS      = 10
 DATASET_DIRS = {
-    0: "dataset/clean",   # Label 0 = Clean
-    1: "dataset/waste"    # Label 1 = Waste
+    0: "dataset/clean",    # Label 0 = Clean
+    1: "dataset/waste"     # Label 1 = Waste
 }
 MODEL_SAVE_PATH = "waste_detection_model.h5"
 
@@ -30,41 +30,37 @@ MODEL_SAVE_PATH = "waste_detection_model.h5"
 # STEP 1: LOAD AND PREPROCESS IMAGES
 # ============================================================
 def load_images(dataset_dirs, img_size):
-    """
-    Loads images from the given directories and assigns labels.
-    Returns:
-        images (np.array): Normalized image array
-        labels (np.array): Corresponding label array
-    """
     images = []
     labels = []
 
     for label, folder_path in dataset_dirs.items():
         if not os.path.exists(folder_path):
-            print(f"[WARNING] Folder not found: {folder_path}. Skipping...")
+            print(f"[WARNING] Folder not found: '{folder_path}'. Skipping...")
             continue
 
-        files = os.listdir(folder_path)
+        valid_extensions = (".jpg", ".jpeg", ".png", ".bmp", ".webp")
+        files = [f for f in os.listdir(folder_path)
+                 if f.lower().endswith(valid_extensions)]
+
         print(f"[INFO] Loading {len(files)} images from '{folder_path}' (Label: {label})")
 
         for file_name in files:
             file_path = os.path.join(folder_path, file_name)
-
-            # Read image using OpenCV
             img = cv2.imread(file_path)
 
             if img is None:
-                print(f"[WARNING] Could not read image: {file_path}. Skipping...")
+                print(f"[WARNING] Could not read: '{file_path}'. Skipping...")
                 continue
 
-            # Resize image to target size
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = cv2.resize(img, (img_size, img_size))
-
-            # Normalize pixel values to range [0, 1]
-            img = img / 255.0
+            img = img.astype(np.float32) / 255.0
 
             images.append(img)
             labels.append(label)
+
+    if len(images) == 0:
+        return np.array([]), np.array([])
 
     images = np.array(images, dtype=np.float32)
     labels = np.array(labels, dtype=np.int32)
@@ -77,9 +73,6 @@ def load_images(dataset_dirs, img_size):
 # STEP 2: SUMMARIZE DATASET WITH PANDAS
 # ============================================================
 def summarize_dataset(labels):
-    """
-    Uses Pandas to print a summary of the dataset distribution.
-    """
     label_names = {0: "Clean", 1: "Waste"}
     df = pd.DataFrame({"Label": labels})
     df["Category"] = df["Label"].map(label_names)
@@ -93,48 +86,24 @@ def summarize_dataset(labels):
 # STEP 3: BUILD THE CNN MODEL
 # ============================================================
 def build_model(input_shape=(224, 224, 3), num_classes=2):
-    """
-    Builds and returns a simple CNN model for binary image classification.
-    Architecture:
-        - 3 Convolutional + MaxPooling blocks
-        - Flatten layer
-        - Dense layers with Dropout for regularization
-        - Softmax output for classification
-    """
     model = Sequential([
-
-        # Block 1: First Convolutional Layer
-        Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+        Conv2D(32, (3, 3), activation="relu", padding="same", input_shape=input_shape),
         MaxPooling2D(pool_size=(2, 2)),
-
-        # Block 2: Second Convolutional Layer
-        Conv2D(64, (3, 3), activation='relu'),
+        Conv2D(64, (3, 3), activation="relu", padding="same"),
         MaxPooling2D(pool_size=(2, 2)),
-
-        # Block 3: Third Convolutional Layer
-        Conv2D(128, (3, 3), activation='relu'),
+        Conv2D(128, (3, 3), activation="relu", padding="same"),
         MaxPooling2D(pool_size=(2, 2)),
-
-        # Flatten feature maps into a 1D vector
         Flatten(),
-
-        # Fully connected Dense layer
-        Dense(128, activation='relu'),
-
-        # Dropout to prevent overfitting (drop 50% of neurons randomly)
+        Dense(128, activation="relu"),
         Dropout(0.5),
+        Dense(num_classes, activation="softmax")
+    ], name="WasteDetectionCNN")
 
-        # Output layer: 2 neurons (Clean, Waste) with Softmax activation
-        Dense(num_classes, activation='softmax')
-    ])
-
-    # Compile the model
     model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=['accuracy']
+        optimizer="adam",
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"]
     )
-
     return model
 
 
@@ -145,38 +114,33 @@ def main():
     print("=" * 60)
     print("  AI & Big Data Powered Smart Waste Monitoring System")
     print("  Future of Engineers Festival - Tashkent, Uzbekistan")
+    print(f"  TensorFlow version : {tf.__version__}")
+    print("  Python compatible  : 3.10 / 3.11 / 3.12 / 3.13")
     print("=" * 60)
 
-    # --- Load Images ---
     images, labels = load_images(DATASET_DIRS, IMG_SIZE)
 
     if len(images) == 0:
-        print("[ERROR] No images were loaded. Please check your dataset folders.")
+        print("\n[ERROR] No images were loaded.")
+        print("  Please add images to 'dataset/waste/' and 'dataset/clean/'")
         return
 
-    # --- Summarize Dataset ---
     summarize_dataset(labels)
 
-    # --- One-Hot Encode Labels ---
-    # e.g., 0 -> [1, 0] (Clean), 1 -> [0, 1] (Waste)
-    labels_categorical = to_categorical(labels, num_classes=2)
-
-    # --- Split into Training and Testing Sets (80% train, 20% test) ---
     X_train, X_test, y_train, y_test = train_test_split(
-        images, labels_categorical,
+        images, labels,
         test_size=0.2,
-        random_state=42
+        random_state=42,
+        stratify=labels
     )
     print(f"\n[INFO] Training samples : {len(X_train)}")
     print(f"[INFO] Testing  samples : {len(X_test)}")
 
-    # --- Build Model ---
     model = build_model(input_shape=(IMG_SIZE, IMG_SIZE, 3), num_classes=2)
     print("\n[INFO] Model Architecture:")
     model.summary()
 
-    # --- Train the Model ---
-    print("\n[INFO] Starting model training...")
+    print("\n[INFO] Starting training ...")
     history = model.fit(
         X_train, y_train,
         epochs=EPOCHS,
@@ -185,18 +149,16 @@ def main():
         verbose=1
     )
 
-    # --- Print Final Accuracy Results ---
-    final_train_acc = history.history['accuracy'][-1] * 100
-    final_val_acc   = history.history['val_accuracy'][-1] * 100
+    final_train_acc = history.history["accuracy"][-1]    * 100
+    final_val_acc   = history.history["val_accuracy"][-1] * 100
 
     print("\n" + "=" * 60)
-    print(f"  Final Training Accuracy   : {final_train_acc:.2f}%")
+    print(f"  Final Training   Accuracy : {final_train_acc:.2f}%")
     print(f"  Final Validation Accuracy : {final_val_acc:.2f}%")
     print("=" * 60)
 
-    # --- Save the Trained Model ---
     model.save(MODEL_SAVE_PATH)
-    print(f"\n[INFO] Model saved successfully as '{MODEL_SAVE_PATH}'")
+    print(f"\n[INFO] Model saved as '{MODEL_SAVE_PATH}'")
     print("[DONE] Training complete!")
 
 
