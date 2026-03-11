@@ -1,0 +1,19 @@
+# ============================================================
+# Streamlit Configuration File
+# Smart Waste Monitoring System
+# ============================================================
+
+[theme]
+base                     = "dark"
+primaryColor             = "#e74c3c"
+backgroundColor          = "#0f0c29"
+secondaryBackgroundColor = "#302b63"
+textColor                = "#ffffff"
+font                     = "sans serif"
+
+[server]
+maxUploadSize   = 50
+enableCORS      = false
+
+[browser]
+gatherUsageStats = false
